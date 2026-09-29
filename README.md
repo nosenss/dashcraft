@@ -63,7 +63,7 @@ npm run dev
 
 Статическая версия на демо-данных собирается командой `npm run build:pages` в папку `out/`. Сервер ей не нужен: отчёт считается прямо в браузере тем же кодом.
 
-`npm run deploy:pages` собирает демо и выкладывает его в ветку `gh-pages`. В форке включите Settings → Pages → Deploy from a branch → `gh-pages`.
+Workflow [`.github/workflows/pages.yml`](.github/workflows/pages.yml) выкладывает демо на GitHub Pages при каждом пуше в `main`. В форке включите Settings → Pages → Source: GitHub Actions. Без Actions можно выложить вручную: `npm run deploy:pages` отправит сборку в ветку `gh-pages`.
 
 ### Со своими данными
 
