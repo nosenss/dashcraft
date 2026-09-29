@@ -7,6 +7,9 @@ import { LoadingProvider, StaleBanner } from "./Loading";
 const inter = Inter({ subsets: ["latin", "cyrillic"], variable: "--font-inter" });
 const manrope = Manrope({ subsets: ["latin", "cyrillic"], variable: "--font-manrope" });
 
+// Регистрация в Livedune (реферальная ссылка автора)
+export const LIVEDUNE_SIGNUP = "https://pro.livedune.com?from=72df001bad";
+
 export const DESCRIPTION = "SMM-дашборд по данным Livedune: воронка, динамика и посты по всем вашим соцсетям";
 
 // Общий каркас страницы: и для сервера с Livedune, и для статического демо на GitHub Pages
@@ -40,6 +43,10 @@ export function Shell({
                 ) : (
                   "Чтобы увидеть свои данные, добавьте LIVEDUNE_TOKEN в .env.local"
                 )}
+                {" · "}
+                <a href={LIVEDUNE_SIGNUP} target="_blank" rel="noreferrer" className="underline underline-offset-2 hover:text-white">
+                  Нет Livedune?
+                </a>
               </div>
             )}
             <Header title={title} canRefresh={canRefresh} accounts={accounts} />

@@ -52,7 +52,7 @@ export class LiveduneError extends Error {
       status === 401 || status === 403
         ? "Livedune не принял API-ключ: проверьте LIVEDUNE_TOKEN или срок тарифа"
         : status === 402
-          ? "В Livedune закончилась квота запросов на этот месяц"
+          ? "В Livedune закончились запросы к API на этот месяц. Докупите запросы или перейдите на тариф с большим лимитом"
           : status === 404
             ? "Livedune не нашёл аккаунт. Возможно, его удалили из дашборда"
             : `Livedune вернул ошибку ${status}: ${body}`,
