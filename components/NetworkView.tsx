@@ -67,7 +67,15 @@ export function NetworkView({ report }: { report: NetworkReport }) {
           {report.generic
             ? `Дашкрафт пока не знает соцсеть «${report.label}» и показывает её по общим метрикам Livedune.`
             : `Данные «${report.label}» ещё не сверены на живых ответах Livedune.`}{" "}
-          Если цифры расходятся с кабинетом Livedune, напишите в Issues на GitHub — поправим.
+          Если цифры расходятся с кабинетом Livedune, напишите автору в{" "}
+          <a href="https://t.me/nosens" target="_blank" rel="noreferrer" className="font-medium text-accent hover:underline">
+            Telegram
+          </a>{" "}
+          или на{" "}
+          <a href="mailto:manlip93@gmail.com" className="font-medium text-accent hover:underline">
+            почту
+          </a>{" "}
+          — поправим.
         </p>
       )}
 
