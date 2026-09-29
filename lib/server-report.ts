@@ -2,7 +2,7 @@ import "server-only";
 import type { Period } from "./dates";
 import { stampOf } from "./livedune/cache";
 import type { Slug } from "./networks";
-import { buildOverview, buildReport, type Source } from "./report";
+import { buildOverview, buildReport, buildTabs, type Source } from "./report";
 import { getHistory, getPosts, isDemo, listAccounts } from "./source";
 
 const source = (): Source => ({
@@ -13,5 +13,6 @@ const source = (): Source => ({
   stampOf,
 });
 
-export const serverReport = (slug: Slug, period: Period) => buildReport(source(), slug, period);
+export const serverReport = (slug: Slug, period: Period, accountId?: number | null) => buildReport(source(), slug, period, accountId);
+export const serverTabs = () => buildTabs(source());
 export const serverOverview = (period: Period) => buildOverview(source(), period);

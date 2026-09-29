@@ -40,10 +40,10 @@ export function NetworkView({ report }: { report: NetworkReport }) {
         <div className="flex items-center gap-3">
           <NetworkIcon slug={report.slug} size={40} />
           <div>
-            <h1 className="font-display text-[28px] font-bold leading-tight tracking-tight">{report.label}</h1>
+            <h1 className="font-display text-[28px] font-bold leading-tight tracking-tight">{report.shared ? report.account.name : report.label}</h1>
             <p className="text-[13px] text-ink-2">
               <a href={report.account.url} target="_blank" rel="noreferrer" className="hover:text-ink hover:underline">
-                {report.account.name}
+                {report.shared ? report.label : report.account.name}
               </a>
               <br />
               {fmtDayYear(period.from)} — {fmtDayYear(period.to)}

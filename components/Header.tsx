@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { addDays, resolvePeriod, todayMSK } from "@/lib/dates";
+import type { AccountTab } from "@/lib/accounts";
 import { NETWORKS } from "@/lib/networks";
 import { describeUrl, fmtStamp, periodText, useLoading } from "./Loading";
 import { NetworkIcon } from "./NetworkIcon";
@@ -24,7 +25,8 @@ function presets() {
 
 type RefreshState = { kind: "idle" } | { kind: "busy"; since: number; phase: "bust" | "reload" } | { kind: "done" } | { kind: "failed"; message: string };
 
-export function Header({ brand, canRefresh }: { brand: string; canRefresh: boolean }) {
+// tabs — подключённые аккаунты; null — список не загрузился, показываем все сети
+export function Header({ brand, canRefresh, tabs }: { brand: string; canRefresh: boolean; tabs: AccountTab[] | null }) {
   const pathname = usePathname();
   const router = useRouter();
   const search = useSearchParams();
@@ -103,7 +105,16 @@ export function Header({ brand, canRefresh }: { brand: string; canRefresh: boole
     return () => clearTimeout(id);
   }, [refresh]);
 
-  const tabs = [{ href: "/", label: "Все сети", slug: null }, ...NETWORKS.map((n) => ({ href: `/${n.slug}`, label: n.label, slug: n.slug }))];
+  const nav = [
+    { href: "/", label: "Все сети", slug: null, title: undefined as string | undefined },
+    ...(tabs ?? NETWORKS.map((n) => ({ href: `/${n.slug}`, label: n.label, slug: n.slug, name: n.label }))).map((t) => ({
+      href: t.href,
+      label: t.label,
+      slug: t.slug,
+      title: t.name !== t.label ? t.name : undefined,
+    })),
+  ];
+  const path = pathname.replace(/\/$/, "") || "/";
 
   return (
     <header className="z-20 sm:sticky sm:top-0 border-b border-line bg-bg/90 backdrop-blur">
@@ -157,8 +168,8 @@ export function Header({ brand, canRefresh }: { brand: string; canRefresh: boole
           </div>
         </div>
         <nav className="-mb-px mt-2 flex gap-1 overflow-x-auto">
-          {tabs.map((t) => {
-            const active = t.href === "/" ? pathname === "/" : pathname.startsWith(t.href);
+          {nav.map((t) => {
+            const active = path === t.href;
             return (
               <Link
                 key={t.href}
@@ -168,7 +179,7 @@ export function Header({ brand, canRefresh }: { brand: string; canRefresh: boole
                 }`}
               >
                 {t.slug && <NetworkIcon slug={t.slug} size={18} />}
-                {t.label}
+                <span className="max-w-[200px] truncate" title={t.title}>{t.label}</span>
               </Link>
             );
           })}

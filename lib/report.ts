@@ -1,12 +1,13 @@
 // Сборка отчёта не зависит от сервера: источник данных передаётся снаружи.
 // На сервере это Livedune или демо (lib/server-report.ts), в статическом демо — генератор прямо в браузере.
+import { listTabs, pickAccount, type AccountTab } from "./accounts";
 import { addDays, eachDay, type Period } from "./dates";
 import type { RawAccount, RawHistoryRow, RawPost } from "./livedune/types";
 import {
   engagementOf, median, pct, totalsOf,
   type Day, type PostRow, type Totals,
 } from "./metrics";
-import { NETWORKS, networkBySlug, type NetworkConfig, type Slug } from "./networks";
+import { networkBySlug, type NetworkConfig, type Slug } from "./networks";
 
 export type Source = {
   listAccounts: () => Promise<RawAccount[]>;
@@ -23,6 +24,8 @@ export type NetworkReport = {
   hasReach: boolean;
   parts: NetworkConfig["parts"];
   account: { id: number; name: string; url: string; img: string | null };
+  href: string; // адрес страницы аккаунта
+  shared: boolean; // в сети несколько аккаунтов — в подписях нужно название аккаунта
   period: Period;
   totals: Totals;
   prevTotals: Totals;
@@ -123,11 +126,19 @@ function followersOn(history: Map<string, RawHistoryRow>, date: string) {
   return null;
 }
 
-export async function buildReport(src: Source, slug: Slug, period: Period, account?: RawAccount): Promise<NetworkReport | null> {
+// Отчёт по аккаунту. Без accountId — первый аккаунт сети (адрес /telegram), иначе конкретный (/telegram/<id>)
+export async function buildReport(src: Source, slug: Slug, period: Period, accountId?: number | null): Promise<NetworkReport | null> {
   const net = networkBySlug(slug);
   if (!net) return null;
-  const acc = account ?? (await projectAccounts(src)).find((a) => a.type === net.type);
-  if (!acc) return null;
+  const accounts = await projectAccounts(src);
+  const acc = pickAccount(accounts, net.type, accountId);
+  const tab = acc && listTabs(accounts).tabs.find((t) => t.id === acc.id);
+  if (!acc || !tab) return null;
+  return reportFor(src, tab, acc, period);
+}
+
+async function reportFor(src: Source, tab: AccountTab, acc: RawAccount, period: Period): Promise<NetworkReport> {
+  const net = networkBySlug(tab.slug)!;
 
   // Одним запросом берём и текущий, и прошлый период (плюс неделя до — для базы подписчиков)
   const [historyRows, rawPosts] = await Promise.all([
@@ -161,6 +172,8 @@ export async function buildReport(src: Source, slug: Slug, period: Period, accou
     hasReach: net.hasReach,
     parts: net.parts,
     account: { id: acc.id, name: acc.name, url: acc.url, img: acc.img ?? null },
+    href: tab.href,
+    shared: tab.shared,
     period,
     totals: cur.totals,
     prevTotals: prev.totals,
@@ -173,25 +186,31 @@ export async function buildReport(src: Source, slug: Slug, period: Period, accou
   };
 }
 
-export type FailedNetwork = { slug: Slug; label: string; error: string };
+export type FailedNetwork = { id: number; slug: Slug; label: string; error: string };
 
+// Сводка по всем подключённым аккаунтам: несколько Telegram-каналов — несколько карточек
 export async function buildOverview(src: Source, period: Period) {
   const accounts = await projectAccounts(src);
+  const { tabs, unsupported } = listTabs(accounts);
   const reports: NetworkReport[] = [];
   const failed: FailedNetwork[] = [];
-  // По две сети параллельно, чтобы не ловить 429
-  const queue = NETWORKS.filter((net) => accounts.some((a) => a.type === net.type));
-  for (let i = 0; i < queue.length; i += 2) {
+  // По два аккаунта параллельно, чтобы не ловить 429
+  for (let i = 0; i < tabs.length; i += 2) {
     const batch = await Promise.all(
-      queue.slice(i, i + 2).map((net) =>
-        buildReport(src, net.slug, period, accounts.find((a) => a.type === net.type)).catch((e: unknown) => {
-          // Одна сеть упала — остальные показываем, а про эту говорим прямо
-          failed.push({ slug: net.slug, label: net.label, error: e instanceof Error ? e.message : "Не удалось загрузить" });
+      tabs.slice(i, i + 2).map((tab) =>
+        reportFor(src, tab, accounts.find((a) => a.id === tab.id)!, period).catch((e: unknown) => {
+          // Один аккаунт упал — остальные показываем, а про этот говорим прямо
+          failed.push({ id: tab.id, slug: tab.slug, label: tab.label, error: e instanceof Error ? e.message : "Не удалось загрузить" });
           return null;
         }),
       ),
     );
     for (const r of batch) if (r) reports.push(r);
   }
-  return { reports, failed };
+  return { reports, failed, unsupported };
+}
+
+// Список вкладок для шапки
+export async function buildTabs(src: Source) {
+  return listTabs(await projectAccounts(src));
 }

@@ -14,7 +14,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ f
   } catch (e) {
     return <LoadError message={e instanceof Error ? e.message : "Неизвестная ошибка"} />;
   }
-  const { reports, failed } = data;
+  const { reports, failed, unsupported } = data;
   if (!reports.length && failed.length) return <LoadError message={failed[0].error} />;
-  return <Overview reports={reports} failed={failed} period={period} />;
+  return <Overview reports={reports} failed={failed} unsupported={unsupported} period={period} />;
 }

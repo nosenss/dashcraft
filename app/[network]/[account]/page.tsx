@@ -1,9 +1,9 @@
-import { NetworkPage } from "./network-page";
+import { NetworkPage } from "../network-page";
 
 export const dynamic = "force-dynamic";
 
 type Props = {
-  params: Promise<{ network: string }>;
+  params: Promise<{ network: string; account: string }>;
   searchParams: Promise<{ from?: string; to?: string }>;
 };
 

@@ -29,19 +29,19 @@ export function DemoOverview() {
     };
   }, [period.from, period.to]); // eslint-disable-line react-hooks/exhaustive-deps
   if (!data) return null;
-  return <Overview reports={data.reports} failed={data.failed} period={period} />;
+  return <Overview reports={data.reports} failed={data.failed} unsupported={data.unsupported} period={period} />;
 }
 
-export function DemoNetwork({ slug }: { slug: Slug }) {
+export function DemoNetwork({ slug, accountId = null }: { slug: Slug; accountId?: number | null }) {
   const period = usePeriod();
   const [report, setReport] = useState<NetworkReport | null>(null);
   useEffect(() => {
     let live = true;
-    buildReport(source, slug, period).then((r) => live && setReport(r));
+    buildReport(source, slug, period, accountId).then((r) => live && setReport(r));
     return () => {
       live = false;
     };
-  }, [slug, period.from, period.to]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [slug, accountId, period.from, period.to]); // eslint-disable-line react-hooks/exhaustive-deps
   if (!report) return null;
   return <NetworkView report={report} />;
 }

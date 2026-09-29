@@ -19,6 +19,7 @@ type Profile = {
   shares: number;
   saves: number;
   types: string[];
+  texts?: string[]; // свои темы постов; по умолчанию — общие про кофейню
 };
 
 const PROFILES: Profile[] = [
@@ -27,6 +28,16 @@ const PROFILES: Profile[] = [
   { id: 103, type: "vk_group", name: "Кофейня Зерно", short: "zerno", url: "https://example.com/vk", followers: 8300, growth: 2.5, postsPerDay: 0.7, viewRate: 0.27, likes: 0.021, comments: 0.002, shares: 0.004, saves: 0, types: ["post", "photo", "video"] },
   { id: 104, type: "youtube", name: "Зерно Coffee", short: "@zernocoffee", url: "https://example.com/youtube", followers: 2600, growth: 3.5, postsPerDay: 0.25, viewRate: 1.3, likes: 0.04, comments: 0.005, shares: 0, saves: 0, types: ["short", "short", "video"] },
   { id: 105, type: "tiktok", name: "zerno.coffee", short: "zerno.coffee", url: "https://example.com/tiktok", followers: 9400, growth: 22, postsPerDay: 0.6, viewRate: 1.9, likes: 0.062, comments: 0.004, shares: 0.005, saves: 0, types: ["clip"] },
+  { id: 107, type: "telegram", name: "Зерно · Работа", short: "zerno_jobs", url: "https://example.com/telegram-jobs", followers: 1100, growth: 1.6, postsPerDay: 0.35, viewRate: 0.62, likes: 0.018, comments: 0.004, shares: 0.021, saves: 0, types: ["post"], texts: [
+    "Ищем бариста на Садовую: график 2/2, обучение с нуля",
+    "Как проходит стажировка в «Зерне»: первые две недели",
+    "Открыта вакансия управляющего кофейней",
+    "История Ани: от стажёра до старшего бариста за год",
+    "Нужен пекарь в утреннюю смену, 5:00–13:00",
+    "Что спрашивают на собеседовании в «Зерно» и как подготовиться",
+    "Команда кофейни на Садовой в сборе — знакомьтесь",
+    "Ищем курьера на велосипеде для доставки зерна",
+  ] },
   { id: 106, type: "dzen", name: "Зерно: истории о кофе", short: "zerno", url: "https://example.com/dzen", followers: 1700, growth: 1.8, postsPerDay: 0.3, viewRate: 0.9, likes: 0.016, comments: 0.003, shares: 0.002, saves: 0, types: ["article", "article", "post"] },
 ];
 
@@ -139,7 +150,7 @@ function postsOn(p: Profile, date: string, followers: number): RawPost[] {
       post_id: id,
       type,
       created: `${date} ${hh}:${mm}:00`,
-      text: TEXTS[Math.floor(r() * TEXTS.length)],
+      text: (p.texts ?? TEXTS)[Math.floor(r() * (p.texts ?? TEXTS).length)],
       url: null,
       reactions,
       impressions: { total: views },

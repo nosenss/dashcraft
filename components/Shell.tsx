@@ -1,5 +1,6 @@
 import { Inter, Manrope } from "next/font/google";
 import { Suspense } from "react";
+import type { AccountTab } from "@/lib/accounts";
 import { Header } from "./Header";
 import { LoadingProvider, StaleBanner } from "./Loading";
 
@@ -14,12 +15,14 @@ export function Shell({
   demo,
   repo,
   canRefresh,
+  tabs,
   children,
 }: {
   brand: string;
   demo: boolean;
   repo?: string;
   canRefresh: boolean;
+  tabs: AccountTab[] | null;
   children: React.ReactNode;
 }) {
   return (
@@ -39,7 +42,7 @@ export function Shell({
                 )}
               </div>
             )}
-            <Header brand={brand} canRefresh={canRefresh} />
+            <Header brand={brand} canRefresh={canRefresh} tabs={tabs} />
             <main className="mx-auto max-w-[1280px] px-4 pb-20 sm:px-6">
               <StaleBanner />
               {children}
