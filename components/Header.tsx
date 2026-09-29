@@ -128,16 +128,14 @@ export function Header({ title, canRefresh, accounts }: HeaderProps) {
     startTransition(() => router.push(href));
   };
 
-  const nav = [
-    { href: "/", label: "Все сети", slug: null, title: undefined as string | undefined },
-    ...(tabs ?? NETWORKS.slice(0, 6).map((n) => ({ href: `/${n.slug}`, label: n.label, slug: n.slug, name: n.label }))).map((t) => ({
-      href: t.href,
-      label: t.label,
-      slug: t.slug,
-      title: t.name !== t.label ? t.name : undefined,
-    })),
-  ];
+  // Одна вкладка на соцсеть; если аккаунтов несколько — число на вкладке и строка аккаунтов под ней
+  const list = tabs ?? NETWORKS.slice(0, 6).map((n) => ({ id: 0, href: `/${n.slug}`, slug: n.slug, network: n.label, name: n.label, label: n.label, shared: false }));
+  const groups = new Map<string, typeof list>();
+  for (const t of list) groups.set(t.slug, [...(groups.get(t.slug) ?? []), t]);
   const path = pathname.replace(/\/$/, "") || "/";
+  const inNetwork = (slug: string) => path === `/${slug}` || path.startsWith(`/${slug}/`);
+  const current = [...groups.entries()].find(([slug]) => inNetwork(slug));
+  const siblings = current && current[1].length > 1 ? current[1] : null;
 
   return (
     <header className="z-20 sm:sticky sm:top-0 border-b border-line bg-bg/90 backdrop-blur">
@@ -211,25 +209,62 @@ export function Header({ title, canRefresh, accounts }: HeaderProps) {
             {canRefresh && <RefreshButton state={refresh} disabled={busy || !!task} onClick={onRefresh} fetchedAt={info.fetchedAt} />}
           </div>
         </div>
-        <nav className="-mb-px mt-2 flex gap-1 overflow-x-auto">
-          {nav.map((t) => {
-            const active = path === t.href;
-            return (
-              <Link
-                key={t.href}
-                href={t.href + qs}
-                className={`flex shrink-0 items-center gap-1.5 border-b-2 px-3 py-2.5 text-[14px] font-medium transition-colors ${
-                  active ? "border-ink text-ink" : "border-transparent text-ink-2 hover:text-ink"
-                }`}
-              >
-                {t.slug && <NetworkIcon slug={t.slug} size={18} />}
-                <span className="max-w-[200px] truncate" title={t.title}>{t.label}</span>
-              </Link>
-            );
-          })}
+        {/* Вкладки переносятся на новую строку, а не уезжают за край: все сети видны сразу */}
+        <nav className="-mb-px mt-2 flex flex-wrap gap-x-1" aria-label="Соцсети">
+          <NavTab href={"/" + qs} active={path === "/"}>
+            Все сети
+          </NavTab>
+          {[...groups.entries()].map(([slug, own]) => (
+            <NavTab key={slug} href={own[0].href + qs} active={inNetwork(slug)}>
+              <NetworkIcon slug={slug} size={18} />
+              {own[0].network}
+              {own.length > 1 && (
+                <span className="rounded-full bg-ink/[0.07] px-1.5 text-[12px] font-semibold tabular text-ink-2" aria-label={`${own.length} аккаунта`}>
+                  {own.length}
+                </span>
+              )}
+            </NavTab>
+          ))}
         </nav>
       </div>
+      {siblings && (
+        <div className="border-t border-line bg-surface/60">
+          <div className="mx-auto flex max-w-[1280px] flex-wrap items-center gap-1.5 px-4 py-2 sm:px-6" role="group" aria-label={`Аккаунты ${siblings[0].network}`}>
+            <span className="mr-1 text-[12px] text-ink-3">Аккаунты:</span>
+            {siblings.map((t, i) => {
+              const active = path === t.href || (i === 0 && path === `/${t.slug}/${t.id}`);
+              return (
+                <Link
+                  key={t.id}
+                  href={t.href + qs}
+                  aria-current={active ? "page" : undefined}
+                  className={`max-w-[260px] truncate rounded-full px-3 py-1 text-[13px] font-medium transition-[color,background-color,scale] active:scale-[0.96] ${
+                    active ? "bg-ink text-white" : "bg-surface text-ink-2 ring-1 ring-line hover:text-ink"
+                  }`}
+                  title={t.name}
+                >
+                  {t.name}
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </header>
+  );
+}
+
+function NavTab({ href, active, children }: { href: string; active: boolean; children: React.ReactNode }) {
+  return (
+    <Link
+      href={href}
+      aria-current={active ? "page" : undefined}
+      className={`flex shrink-0 items-center gap-1.5 border-b-2 px-3 py-2.5 text-[14px] font-medium transition-colors ${
+        active ? "border-ink text-ink" : "border-transparent text-ink-2 hover:text-ink"
+      }`}
+    >
+      {children}
+    </Link>
   );
 }
 

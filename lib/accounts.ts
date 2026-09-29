@@ -9,6 +9,7 @@ export type AccountBrief = Pick<RawAccount, "id" | "type" | "name" | "project">;
 export type AccountTab = {
   id: number;
   slug: Slug;
+  network: string; // название соцсети: «Telegram»
   name: string; // название аккаунта в Livedune
   label: string; // подпись вкладки: «Telegram», а если каналов несколько — название канала
   href: string; // первый аккаунт сети — /telegram, остальные — /telegram/<id>
@@ -37,6 +38,7 @@ export function listTabs(accounts: Pick<RawAccount, "id" | "type" | "name">[]): 
     return own.map((a, i) => ({
       id: a.id,
       slug,
+      network: networkForType(a.type).label,
       name: a.name,
       label: own.length > 1 ? a.name : networkForType(a.type).label,
       href: accountHref(slug, a.id, i === 0),
