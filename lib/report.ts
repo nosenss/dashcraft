@@ -1,19 +1,19 @@
 // Сборка отчёта не зависит от сервера: источник данных передаётся снаружи.
 // На сервере это Livedune или демо (lib/server-report.ts), в статическом демо — генератор прямо в браузере.
-import { listTabs, pickAccount, type AccountTab } from "./accounts";
+import { ALL, inScope, listTabs, pickAccount, sameProject, type AccountTab, type Scope } from "./accounts";
 import { addDays, eachDay, type Period } from "./dates";
 import type { RawAccount, RawHistoryRow, RawPost } from "./livedune/types";
 import {
   engagementOf, median, pct, totalsOf,
   type Day, type PostRow, type Totals,
 } from "./metrics";
-import { networkBySlug, type NetworkConfig, type Slug } from "./networks";
+import { GENERIC_PARTS, networkForType, type Part, type Parts, type Slug } from "./networks";
 
 export type Source = {
   listAccounts: () => Promise<RawAccount[]>;
   getHistory: (id: number, from: string, to: string) => Promise<RawHistoryRow[]>;
   getPosts: (id: number, from: string, to: string) => Promise<RawPost[]>;
-  project?: string; // проект в Livedune; пусто — все аккаунты
+  scope?: Scope; // какие проекты и аккаунты показывать (LIVEDUNE_PROJECT, LIVEDUNE_ACCOUNTS)
   stampOf?: (data: unknown) => { at: number; stale: boolean } | null; // когда получены данные
 };
 
@@ -22,7 +22,9 @@ export type NetworkReport = {
   label: string;
   brand: string;
   hasReach: boolean;
-  parts: NetworkConfig["parts"];
+  parts: Parts;
+  generic: boolean; // сеть не из списка Дашкрафта — показана по общим метрикам
+  verified: boolean; // формат данных этой сети сверен на живых ответах Livedune
   account: { id: number; name: string; url: string; img: string | null };
   href: string; // адрес страницы аккаунта
   shared: boolean; // в сети несколько аккаунтов — в подписях нужно название аккаунта
@@ -41,21 +43,29 @@ export type NetworkReport = {
 const n = (v: unknown) => (typeof v === "number" && Number.isFinite(v) && v >= 0 ? v : null);
 const z = (v: unknown) => n(v) ?? 0;
 
-export async function projectAccounts(src: Source) {
-  const all = await src.listAccounts();
-  return src.project ? all.filter((a) => a.project === src.project) : all;
+// Аккаунты в рамках настроек (.env) и выбранного в шапке проекта
+export async function scopedAccounts(src: Source, project?: string | null) {
+  const all = inScope(await src.listAccounts(), src.scope ?? ALL);
+  return project ? all.filter((a) => sameProject(a.project, project)) : all;
 }
+
+// Первое число из нескольких возможных названий поля: сети называют одно и то же по-разному
+const first = (r: Record<string, unknown>, keys: string[]) => {
+  for (const k of keys) if (n(r[k]) != null) return n(r[k])!;
+  return 0;
+};
+const total = (r: Record<string, unknown>, keys: string[]) => keys.reduce((s, k) => s + z(r[k]), 0);
 
 function toPost(raw: RawPost): Omit<PostRow, "er" | "vsMedian"> {
   const r = raw.reactions ?? {};
   const counts = {
     views: z(raw.impressions?.total),
     reach: n(raw.reach?.total),
-    likes: z(r.likes),
-    comments: z(r.comments),
-    // репосты, «поделились» и пересылки — одно действие «распространить»
-    shares: z(r.reposts) + z(r.shares) + z(r.forwards),
-    saves: z(r.saved),
+    likes: first(r, ["likes", "klass", "class", "reactions", "like"]),
+    comments: first(r, ["comments", "replies"]),
+    // репосты, «поделились», пересылки и ретвиты — одно действие «распространить»
+    shares: total(r, ["reposts", "shares", "forwards", "retweets", "reshares"]),
+    saves: first(r, ["saved", "saves", "bookmarks"]),
   };
   const engagement = engagementOf(counts);
   const created = raw.created ?? "";
@@ -127,18 +137,22 @@ function followersOn(history: Map<string, RawHistoryRow>, date: string) {
 }
 
 // Отчёт по аккаунту. Без accountId — первый аккаунт сети (адрес /telegram), иначе конкретный (/telegram/<id>)
-export async function buildReport(src: Source, slug: Slug, period: Period, accountId?: number | null): Promise<NetworkReport | null> {
-  const net = networkBySlug(slug);
-  if (!net) return null;
-  const accounts = await projectAccounts(src);
-  const acc = pickAccount(accounts, net.type, accountId);
-  const tab = acc && listTabs(accounts).tabs.find((t) => t.id === acc.id);
+export async function buildReport(
+  src: Source,
+  slug: Slug,
+  period: Period,
+  accountId?: number | null,
+  project?: string | null,
+): Promise<NetworkReport | null> {
+  const accounts = await scopedAccounts(src, project);
+  const acc = pickAccount(accounts, slug, accountId);
+  const tab = acc && listTabs(accounts).find((t) => t.id === acc.id);
   if (!acc || !tab) return null;
   return reportFor(src, tab, acc, period);
 }
 
 async function reportFor(src: Source, tab: AccountTab, acc: RawAccount, period: Period): Promise<NetworkReport> {
-  const net = networkBySlug(tab.slug)!;
+  const net = networkForType(acc.type);
 
   // Одним запросом берём и текущий, и прошлый период (плюс неделя до — для базы подписчиков)
   const [historyRows, rawPosts] = await Promise.all([
@@ -165,12 +179,20 @@ async function reportFor(src: Source, tab: AccountTab, acc: RawAccount, period: 
   const cur = make(period.from, period.to);
   const prev = make(period.prevFrom, period.prevTo);
 
+  // Виды реакций: из настроек сети плюс те, что реально пришли в данных (для сетей, не сверенных вживую)
+  const parts: Parts = { ...net.parts };
+  for (const k of Object.keys(GENERIC_PARTS) as Part[]) {
+    if (!parts[k] && allPosts.some((p) => p[k] > 0)) parts[k] = GENERIC_PARTS[k];
+  }
+
   return {
     slug: net.slug,
     label: net.label,
     brand: net.brand,
-    hasReach: net.hasReach,
-    parts: net.parts,
+    hasReach: net.hasReach || allPosts.some((p) => p.reach != null),
+    parts,
+    generic: !!net.generic,
+    verified: net.verified,
     account: { id: acc.id, name: acc.name, url: acc.url, img: acc.img ?? null },
     href: tab.href,
     shared: tab.shared,
@@ -189,9 +211,9 @@ async function reportFor(src: Source, tab: AccountTab, acc: RawAccount, period: 
 export type FailedNetwork = { id: number; slug: Slug; label: string; error: string };
 
 // Сводка по всем подключённым аккаунтам: несколько Telegram-каналов — несколько карточек
-export async function buildOverview(src: Source, period: Period) {
-  const accounts = await projectAccounts(src);
-  const { tabs, unsupported } = listTabs(accounts);
+export async function buildOverview(src: Source, period: Period, project?: string | null) {
+  const accounts = await scopedAccounts(src, project);
+  const tabs = listTabs(accounts);
   const reports: NetworkReport[] = [];
   const failed: FailedNetwork[] = [];
   // По два аккаунта параллельно, чтобы не ловить 429
@@ -207,10 +229,10 @@ export async function buildOverview(src: Source, period: Period) {
     );
     for (const r of batch) if (r) reports.push(r);
   }
-  return { reports, failed, unsupported };
+  return { reports, failed };
 }
 
-// Список вкладок для шапки
-export async function buildTabs(src: Source) {
-  return listTabs(await projectAccounts(src));
+// Аккаунты для шапки: вкладки и переключатель проектов собираются в браузере
+export async function buildAccountList(src: Source) {
+  return (await scopedAccounts(src)).map(({ id, type, name, project }) => ({ id, type, name, project }));
 }

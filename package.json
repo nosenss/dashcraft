@@ -2,14 +2,15 @@
   "name": "dashcraft",
   "version": "0.1.0",
   "private": true,
-  "description": "SMM-дашборд по данным Livedune: воронка, динамика и посты по шести соцсетям",
+  "description": "SMM-дашборд по данным Livedune: воронка, динамика и посты по всем вашим соцсетям",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "build:pages": "node scripts/build-pages.mjs",
     "deploy:pages": "node scripts/deploy-pages.mjs",
     "start": "next start",
-    "probe": "node --env-file=.env.local scripts/probe.mjs"
+    "probe": "node --env-file=.env.local scripts/probe.mjs",
+    "accounts": "node --env-file=.env.local scripts/accounts.mjs"
   },
   "dependencies": {
     "next": "^15.5.26",

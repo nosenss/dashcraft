@@ -16,4 +16,6 @@ else if (cmd === "post") {
   const r = await get(`/accounts/${args[0]}/${args[1]}`, { date_from: args[2], date_to: args[3], after: args[4] });
   const b = r.body;
   console.log(r.status, "count", b?.count, "after", b?.after, "n", b?.response?.length, "first", b?.response?.[0]?.created, "last", b?.response?.at(-1)?.created);
+  // Пример строки целиком — чтобы увидеть, как сеть называет поля реакций
+  console.log(JSON.stringify(b?.response?.[0] ?? null, null, 2)?.slice(0, 3000));
 }

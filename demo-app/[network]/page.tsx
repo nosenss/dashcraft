@@ -1,13 +1,16 @@
 import { DemoNetwork } from "@/components/DemoPages";
-import { NETWORKS, type Slug } from "@/lib/networks";
+import { listAccounts } from "@/lib/demo";
+import { networkForType } from "@/lib/networks";
 
 export const dynamicParams = false;
 
-export function generateStaticParams() {
-  return NETWORKS.map((n) => ({ network: n.slug }));
+// Все сети, которые есть в демо
+export async function generateStaticParams() {
+  const slugs = new Set((await listAccounts()).map((a) => networkForType(a.type).slug));
+  return [...slugs].map((network) => ({ network }));
 }
 
-export default async function NetworkPage({ params }: { params: Promise<{ network: string }> }) {
+export default async function Page({ params }: { params: Promise<{ network: string }> }) {
   const { network } = await params;
-  return <DemoNetwork slug={network as Slug} />;
+  return <DemoNetwork slug={network} />;
 }

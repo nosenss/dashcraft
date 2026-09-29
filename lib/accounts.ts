@@ -1,7 +1,10 @@
 // Какие аккаунты показывать и как их называть: дашборд подстраивается под то, что подключено в Livedune.
-// Чистые функции — работают и на сервере, и в браузере (статическое демо).
+// Чистые функции — работают и на сервере, и в браузере (статическое демо, переключатель проектов).
 import type { RawAccount } from "./livedune/types";
-import { NETWORKS, type Slug } from "./networks";
+import { NETWORKS, networkForType, type Slug } from "./networks";
+
+// Минимум об аккаунте, который нужен шапке в браузере
+export type AccountBrief = Pick<RawAccount, "id" | "type" | "name" | "project">;
 
 export type AccountTab = {
   id: number;
@@ -12,36 +15,73 @@ export type AccountTab = {
   shared: boolean; // в этой сети больше одного аккаунта
 };
 
-export type Unsupported = { id: number; name: string; type: string };
-
-export type AccountList = { tabs: AccountTab[]; unsupported: Unsupported[] };
-
 export function accountHref(slug: Slug, id: number, first: boolean) {
   return first ? `/${slug}` : `/${slug}/${id}`;
 }
 
-export function listTabs(accounts: RawAccount[]): AccountList {
-  const tabs: AccountTab[] = [];
-  for (const net of NETWORKS) {
-    const own = accounts.filter((a) => a.type === net.type);
-    own.forEach((a, i) =>
-      tabs.push({
-        id: a.id,
-        slug: net.slug,
-        name: a.name,
-        label: own.length > 1 ? a.name : net.label,
-        href: accountHref(net.slug, a.id, i === 0),
-        shared: own.length > 1,
-      }),
-    );
+const order = (slug: Slug) => {
+  const i = NETWORKS.findIndex((n) => n.slug === slug);
+  return i < 0 ? NETWORKS.length : i;
+};
+
+// Вкладки: сначала известные сети в привычном порядке, потом остальные — в порядке Livedune
+export function listTabs(accounts: Pick<RawAccount, "id" | "type" | "name">[]): AccountTab[] {
+  const groups = new Map<Slug, typeof accounts>();
+  for (const a of accounts) {
+    const slug = networkForType(a.type).slug;
+    groups.set(slug, [...(groups.get(slug) ?? []), a]);
   }
-  const known = new Set(NETWORKS.map((n) => n.type));
-  const unsupported = accounts.filter((a) => !known.has(a.type)).map((a) => ({ id: a.id, name: a.name, type: a.type }));
-  return { tabs, unsupported };
+  const slugs = [...groups.keys()].sort((a, b) => order(a) - order(b));
+  return slugs.flatMap((slug) => {
+    const own = groups.get(slug)!;
+    return own.map((a, i) => ({
+      id: a.id,
+      slug,
+      name: a.name,
+      label: own.length > 1 ? a.name : networkForType(a.type).label,
+      href: accountHref(slug, a.id, i === 0),
+      shared: own.length > 1,
+    }));
+  });
 }
 
 // Аккаунт по адресу: /telegram — первый канал, /telegram/<id> — конкретный
-export function pickAccount(accounts: RawAccount[], type: string, id?: number | null) {
-  const own = accounts.filter((a) => a.type === type);
+export function pickAccount<T extends Pick<RawAccount, "id" | "type">>(accounts: T[], slug: Slug, id?: number | null) {
+  const own = accounts.filter((a) => networkForType(a.type).slug === slug);
   return id == null ? own[0] ?? null : own.find((a) => a.id === id) ?? null;
 }
+
+// Фильтр: какие проекты и аккаунты показывать
+export type Scope = {
+  projects: string[]; // пусто — все проекты
+  ids: number[]; // пусто — все аккаунты
+};
+
+export const ALL: Scope = { projects: [], ids: [] };
+
+// Названия проектов сравниваем без учёта регистра и пробелов: Livedune отдаёт то «Default», то «default»,
+// а человек в .env может написать как угодно
+export const sameProject = (a?: string | null, b?: string | null) =>
+  (a ?? "").trim().toLowerCase() === (b ?? "").trim().toLowerCase();
+
+export function inScope<T extends Pick<RawAccount, "id" | "project">>(accounts: T[], scope: Scope) {
+  return accounts.filter(
+    (a) =>
+      (!scope.projects.length || scope.projects.some((p) => sameProject(p, a.project))) &&
+      (!scope.ids.length || scope.ids.includes(a.id)),
+  );
+}
+
+// Проекты в порядке Livedune, без повторов
+export function projectsOf(accounts: Pick<RawAccount, "project">[]) {
+  const out: string[] = [];
+  for (const a of accounts) if (a.project && !out.some((p) => sameProject(p, a.project))) out.push(a.project);
+  return out;
+}
+
+// «Проект А, Проект Б» из .env или ?project= → список
+export const splitList = (v?: string | null) =>
+  (v ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);

@@ -44,7 +44,7 @@ export function describeUrl(url: URL) {
   const slug = path.replace(/^\//, "").split("/")[0];
   const net = networkBySlug(slug);
   return {
-    title: net ? `Загружаем ${net.label}` : "Загружаем все соцсети",
+    title: net ? `Загружаем ${net.label}` : slug ? "Загружаем аккаунт" : "Загружаем все соцсети",
     detail: periodText(p.from, p.to),
   };
 }

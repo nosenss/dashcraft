@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import type { Unsupported } from "@/lib/accounts";
 import type { Period } from "@/lib/dates";
 import type { FailedNetwork, NetworkReport } from "@/lib/report";
 import { useReportInfo } from "./Loading";
@@ -12,9 +11,9 @@ import { Sparkline } from "./charts";
 import { NetworkIcon } from "./NetworkIcon";
 import { Card, Delta, Kpi } from "./ui";
 
-type Props = { reports: NetworkReport[]; failed: FailedNetwork[]; unsupported: Unsupported[]; period: Period };
+type Props = { reports: NetworkReport[]; failed: FailedNetwork[]; period: Period };
 
-export function Overview({ reports, failed, unsupported, period }: Props) {
+export function Overview({ reports, failed, period }: Props) {
   useReportInfo(
     reports.length ? Math.min(...reports.map((r) => r.fetchedAt ?? Date.now())) : null,
     reports.some((r) => r.stale),
@@ -118,20 +117,7 @@ export function Overview({ reports, failed, unsupported, period }: Props) {
 
       {!reports.length && !failed.length && (
         <div className="mt-6 rounded-2xl bg-surface p-6 text-center text-[13px] text-ink-2 ring-1 ring-line">
-          В Livedune нет подключённых аккаунтов Instagram, Telegram, ВКонтакте, YouTube, TikTok или Дзена. Добавьте их в дашборд Livedune.
-        </div>
-      )}
-
-      {unsupported.length > 0 && (
-        <div className="mt-4 rounded-2xl border border-dashed border-line bg-surface px-5 py-4 text-[13px] text-ink-2">
-          <span className="font-semibold text-ink">Не показаны: </span>
-          {unsupported.map((u, i) => (
-            <span key={u.id}>
-              {i > 0 && ", "}
-              {u.name} <span className="text-ink-3">({u.type})</span>
-            </span>
-          ))}
-          . Эти соцсети Дашкрафт пока не поддерживает.
+          В Livedune нет подключённых аккаунтов. Добавьте их в дашборд Livedune и нажмите «Обновить».
         </div>
       )}
 

@@ -62,6 +62,15 @@ export function NetworkView({ report }: { report: NetworkReport }) {
         />
       </div>
 
+      {!report.verified && (
+        <p className="mt-4 rounded-xl bg-surface px-4 py-3 text-[13px] text-ink-2 ring-1 ring-line">
+          {report.generic
+            ? `Дашкрафт пока не знает соцсеть «${report.label}» и показывает её по общим метрикам Livedune.`
+            : `Данные «${report.label}» ещё не сверены на живых ответах Livedune.`}{" "}
+          Если цифры расходятся с кабинетом Livedune, напишите в Issues на GitHub — поправим.
+        </p>
+      )}
+
       <FunnelStrip report={report} />
 
       {/* 1. Аудитория */}

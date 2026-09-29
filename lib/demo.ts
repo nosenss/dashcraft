@@ -1,4 +1,4 @@
-// Демо-данные: вымышленная сеть кофеен «Зерно». Отдаём их в том же виде, что и Livedune API,
+// Демо-данные: два вымышленных проекта — сеть кофеен «Зерно» и пекарня «Мука». Отдаём их в том же виде, что и Livedune API,
 // поэтому весь остальной код (метрики, графики, таблицы) работает без изменений.
 // Всё детерминировано: одна и та же дата всегда даёт те же посты и тех же подписчиков.
 import { addDays, todayMSK } from "./dates";
@@ -6,6 +6,7 @@ import type { RawAccount, RawHistoryRow, RawPost } from "./livedune/types";
 
 type Profile = {
   id: number;
+  project: string;
   type: string;
   name: string;
   short: string;
@@ -22,13 +23,27 @@ type Profile = {
   texts?: string[]; // свои темы постов; по умолчанию — общие про кофейню
 };
 
+const ZERNO = "Кофейня «Зерно»";
+const MUKA = "Пекарня «Мука»";
+
+const BAKERY = [
+  "Утренняя выпечка готова: круассаны, улитки с корицей и багеты",
+  "Как мы заводим закваску для ржаного хлеба",
+  "Новинка недели — пирог с яблоком и брусникой",
+  "Мастер-класс по багетам для детей в субботу",
+  "Почему наш хлеб не черствеет три дня",
+  "Собираем заказы на куличи — осталось 40 мест",
+  "Пекарь Миша показывает, как формовать чиабатту",
+  "Скидка 30% на хлеб после 20:00 — забирайте тёплым",
+];
+
 const PROFILES: Profile[] = [
-  { id: 101, type: "instagram_new", name: "Кофейня «Зерно»", short: "zerno.coffee", url: "https://example.com/instagram", followers: 14200, growth: 11, postsPerDay: 0.8, viewRate: 0.42, likes: 0.045, comments: 0.004, shares: 0.007, saves: 0.011, types: ["reels", "reels", "carousel", "photo"] },
-  { id: 102, type: "telegram", name: "Зерно · кофе и люди", short: "zerno_coffee", url: "https://example.com/telegram", followers: 4800, growth: 4, postsPerDay: 1.1, viewRate: 0.48, likes: 0.028, comments: 0.003, shares: 0.009, saves: 0, types: ["post", "post", "photo", "poll"] },
-  { id: 103, type: "vk_group", name: "Кофейня Зерно", short: "zerno", url: "https://example.com/vk", followers: 8300, growth: 2.5, postsPerDay: 0.7, viewRate: 0.27, likes: 0.021, comments: 0.002, shares: 0.004, saves: 0, types: ["post", "photo", "video"] },
-  { id: 104, type: "youtube", name: "Зерно Coffee", short: "@zernocoffee", url: "https://example.com/youtube", followers: 2600, growth: 3.5, postsPerDay: 0.25, viewRate: 1.3, likes: 0.04, comments: 0.005, shares: 0, saves: 0, types: ["short", "short", "video"] },
-  { id: 105, type: "tiktok", name: "zerno.coffee", short: "zerno.coffee", url: "https://example.com/tiktok", followers: 9400, growth: 22, postsPerDay: 0.6, viewRate: 1.9, likes: 0.062, comments: 0.004, shares: 0.005, saves: 0, types: ["clip"] },
-  { id: 107, type: "telegram", name: "Зерно · Работа", short: "zerno_jobs", url: "https://example.com/telegram-jobs", followers: 1100, growth: 1.6, postsPerDay: 0.35, viewRate: 0.62, likes: 0.018, comments: 0.004, shares: 0.021, saves: 0, types: ["post"], texts: [
+  { id: 101, project: ZERNO, type: "instagram_new", name: "Кофейня «Зерно»", short: "zerno.coffee", url: "https://example.com/instagram", followers: 14200, growth: 11, postsPerDay: 0.8, viewRate: 0.42, likes: 0.045, comments: 0.004, shares: 0.007, saves: 0.011, types: ["reels", "reels", "carousel", "photo"] },
+  { id: 102, project: ZERNO, type: "telegram", name: "Зерно · кофе и люди", short: "zerno_coffee", url: "https://example.com/telegram", followers: 4800, growth: 4, postsPerDay: 1.1, viewRate: 0.48, likes: 0.028, comments: 0.003, shares: 0.009, saves: 0, types: ["post", "post", "photo", "poll"] },
+  { id: 103, project: ZERNO, type: "vk_group", name: "Кофейня Зерно", short: "zerno", url: "https://example.com/vk", followers: 8300, growth: 2.5, postsPerDay: 0.7, viewRate: 0.27, likes: 0.021, comments: 0.002, shares: 0.004, saves: 0, types: ["post", "photo", "video"] },
+  { id: 104, project: ZERNO, type: "youtube", name: "Зерно Coffee", short: "@zernocoffee", url: "https://example.com/youtube", followers: 2600, growth: 3.5, postsPerDay: 0.25, viewRate: 1.3, likes: 0.04, comments: 0.005, shares: 0, saves: 0, types: ["short", "short", "video"] },
+  { id: 105, project: ZERNO, type: "tiktok", name: "zerno.coffee", short: "zerno.coffee", url: "https://example.com/tiktok", followers: 9400, growth: 22, postsPerDay: 0.6, viewRate: 1.9, likes: 0.062, comments: 0.004, shares: 0.005, saves: 0, types: ["clip"] },
+  { id: 107, project: ZERNO, type: "telegram", name: "Зерно · Работа", short: "zerno_jobs", url: "https://example.com/telegram-jobs", followers: 1100, growth: 1.6, postsPerDay: 0.35, viewRate: 0.62, likes: 0.018, comments: 0.004, shares: 0.021, saves: 0, types: ["post"], texts: [
     "Ищем бариста на Садовую: график 2/2, обучение с нуля",
     "Как проходит стажировка в «Зерне»: первые две недели",
     "Открыта вакансия управляющего кофейней",
@@ -38,7 +53,11 @@ const PROFILES: Profile[] = [
     "Команда кофейни на Садовой в сборе — знакомьтесь",
     "Ищем курьера на велосипеде для доставки зерна",
   ] },
-  { id: 106, type: "dzen", name: "Зерно: истории о кофе", short: "zerno", url: "https://example.com/dzen", followers: 1700, growth: 1.8, postsPerDay: 0.3, viewRate: 0.9, likes: 0.016, comments: 0.003, shares: 0.002, saves: 0, types: ["article", "article", "post"] },
+  { id: 106, project: ZERNO, type: "dzen", name: "Зерно: истории о кофе", short: "zerno", url: "https://example.com/dzen", followers: 1700, growth: 1.8, postsPerDay: 0.3, viewRate: 0.9, likes: 0.016, comments: 0.003, shares: 0.002, saves: 0, types: ["article", "article", "post"] },
+  { id: 201, project: MUKA, type: "telegram", name: "Мука — пекарня у дома", short: "muka_bakery", url: "https://example.com/muka-telegram", followers: 2400, growth: 2.5, postsPerDay: 0.9, viewRate: 0.5, likes: 0.03, comments: 0.003, shares: 0.01, saves: 0, types: ["post", "photo", "round"], texts: BAKERY },
+  { id: 202, project: MUKA, type: "vk_group", name: "Пекарня Мука", short: "muka", url: "https://example.com/muka-vk", followers: 5200, growth: 3, postsPerDay: 0.6, viewRate: 0.3, likes: 0.025, comments: 0.002, shares: 0.004, saves: 0, types: ["post", "photo"], texts: BAKERY },
+  { id: 203, project: MUKA, type: "ok", name: "Пекарня «Мука»", short: "muka", url: "https://example.com/muka-ok", followers: 3100, growth: 2, postsPerDay: 0.5, viewRate: 0.45, likes: 0.035, comments: 0.004, shares: 0.006, saves: 0, types: ["post", "photo", "video"], texts: BAKERY },
+  { id: 204, project: MUKA, type: "rutube", name: "Мука: хлеб своими руками", short: "muka", url: "https://example.com/muka-rutube", followers: 800, growth: 1.2, postsPerDay: 0.15, viewRate: 1.1, likes: 0.03, comments: 0.004, shares: 0.002, saves: 0, types: ["video"], texts: BAKERY },
 ];
 
 const TEXTS = [
@@ -178,7 +197,7 @@ export async function listAccounts(): Promise<RawAccount[]> {
     social_id: String(p.id),
     is_linked: true,
     type: p.type,
-    project: "Демо",
+    project: p.project,
     name: p.name,
     short_name: p.short,
     url: p.url,

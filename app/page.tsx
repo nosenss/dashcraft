@@ -5,16 +5,18 @@ import { serverOverview } from "@/lib/server-report";
 
 export const dynamic = "force-dynamic";
 
-export default async function Home({ searchParams }: { searchParams: Promise<{ from?: string; to?: string }> }) {
+type Props = { searchParams: Promise<{ from?: string; to?: string; project?: string }> };
+
+export default async function Home({ searchParams }: Props) {
   const q = await searchParams;
   const period = resolvePeriod(q.from, q.to);
   let data;
   try {
-    data = await serverOverview(period);
+    data = await serverOverview(period, q.project);
   } catch (e) {
     return <LoadError message={e instanceof Error ? e.message : "Неизвестная ошибка"} />;
   }
-  const { reports, failed, unsupported } = data;
+  const { reports, failed } = data;
   if (!reports.length && failed.length) return <LoadError message={failed[0].error} />;
-  return <Overview reports={reports} failed={failed} unsupported={unsupported} period={period} />;
+  return <Overview reports={reports} failed={failed} period={period} />;
 }

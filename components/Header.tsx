@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { addDays, resolvePeriod, todayMSK } from "@/lib/dates";
-import type { AccountTab } from "@/lib/accounts";
+import { listTabs, projectsOf, sameProject, type AccountBrief } from "@/lib/accounts";
 import { NETWORKS } from "@/lib/networks";
 import { describeUrl, fmtStamp, periodText, useLoading } from "./Loading";
 import { NetworkIcon } from "./NetworkIcon";
@@ -25,8 +25,13 @@ function presets() {
 
 type RefreshState = { kind: "idle" } | { kind: "busy"; since: number; phase: "bust" | "reload" } | { kind: "done" } | { kind: "failed"; message: string };
 
-// tabs — подключённые аккаунты; null — список не загрузился, показываем все сети
-export function Header({ brand, canRefresh, tabs }: { brand: string; canRefresh: boolean; tabs: AccountTab[] | null }) {
+type HeaderProps = {
+  title?: string; // DASHBOARD_TITLE; без него — название проекта или «Дашкрафт»
+  canRefresh: boolean;
+  accounts: AccountBrief[] | null; // подключённые аккаунты; null — список не загрузился, показываем основные сети
+};
+
+export function Header({ title, canRefresh, accounts }: HeaderProps) {
   const pathname = usePathname();
   const router = useRouter();
   const search = useSearchParams();
@@ -105,9 +110,27 @@ export function Header({ brand, canRefresh, tabs }: { brand: string; canRefresh:
     return () => clearTimeout(id);
   }, [refresh]);
 
+  // Проекты Livedune: если их несколько, в шапке появляется переключатель (?project=)
+  const projects = accounts ? projectsOf(accounts) : [];
+  const project = projects.find((p) => sameProject(p, search.get("project"))) ?? null;
+  const visible = accounts?.filter((a) => !project || sameProject(a.project, project)) ?? null;
+  const tabs = visible ? listTabs(visible) : null;
+  const heading = title || project || (projects.length === 1 ? projects[0] : "Дашкрафт");
+
+  const switchProject = (next: string) => {
+    const q = new URLSearchParams(search);
+    if (next) q.set("project", next);
+    else q.delete("project");
+    // В другом проекте другие аккаунты — начинаем со сводки
+    const href = `/?${q.toString()}`;
+    const d = describeUrl(new URL(href, location.href));
+    start(next ? `Загружаем «${next}»` : "Загружаем все проекты", d.detail, href);
+    startTransition(() => router.push(href));
+  };
+
   const nav = [
     { href: "/", label: "Все сети", slug: null, title: undefined as string | undefined },
-    ...(tabs ?? NETWORKS.map((n) => ({ href: `/${n.slug}`, label: n.label, slug: n.slug, name: n.label }))).map((t) => ({
+    ...(tabs ?? NETWORKS.slice(0, 6).map((n) => ({ href: `/${n.slug}`, label: n.label, slug: n.slug, name: n.label }))).map((t) => ({
       href: t.href,
       label: t.label,
       slug: t.slug,
@@ -120,8 +143,29 @@ export function Header({ brand, canRefresh, tabs }: { brand: string; canRefresh:
     <header className="z-20 sm:sticky sm:top-0 border-b border-line bg-bg/90 backdrop-blur">
       <div className="mx-auto max-w-[1280px] px-4 sm:px-6">
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2 pt-3">
-          <div className="mr-auto font-display text-[15px] font-bold tracking-tight">
-            {brand} <span className="ml-1 font-medium text-ink-3">соцсети</span>
+          <div className="mr-auto flex min-w-0 items-center gap-2">
+            {projects.length > 1 ? (
+              <label className="relative flex min-w-0 items-center">
+                <span className="sr-only">Проект Livedune</span>
+                <select
+                  value={project ?? ""}
+                  onChange={(e) => switchProject(e.target.value)}
+                  disabled={busy || !!task}
+                  className="max-w-[260px] cursor-pointer appearance-none truncate rounded-full bg-surface py-1 pl-3 pr-8 font-display text-[15px] font-bold tracking-tight ring-1 ring-line hover:ring-ink/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                >
+                  <option value="">Все проекты</option>
+                  {projects.map((p) => (
+                    <option key={p} value={p}>
+                      {p}
+                    </option>
+                  ))}
+                </select>
+                <span aria-hidden className="pointer-events-none absolute right-3 text-[11px] text-ink-3">▼</span>
+              </label>
+            ) : (
+              <span className="truncate font-display text-[15px] font-bold tracking-tight">{heading}</span>
+            )}
+            <span className="shrink-0 font-display text-[15px] font-medium text-ink-3">соцсети</span>
           </div>
           <div className="flex flex-wrap items-center gap-1.5">
             {presets().map((p) => {

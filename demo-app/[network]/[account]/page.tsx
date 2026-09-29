@@ -1,17 +1,15 @@
 import { DemoNetwork } from "@/components/DemoPages";
-import { listTabs } from "@/lib/accounts";
 import { listAccounts } from "@/lib/demo";
-import type { Slug } from "@/lib/networks";
+import { networkForType } from "@/lib/networks";
 
 export const dynamicParams = false;
 
-// Вторые и следующие аккаунты сети: /telegram/<id>
+// /сеть/<id> для каждого аккаунта: какой из них «первый», зависит от выбранного проекта
 export async function generateStaticParams() {
-  const { tabs } = listTabs(await listAccounts());
-  return tabs.filter((t) => t.href !== `/${t.slug}`).map((t) => ({ network: t.slug, account: String(t.id) }));
+  return (await listAccounts()).map((a) => ({ network: networkForType(a.type).slug, account: String(a.id) }));
 }
 
 export default async function Page({ params }: { params: Promise<{ network: string; account: string }> }) {
   const { network, account } = await params;
-  return <DemoNetwork slug={network as Slug} accountId={Number(account)} />;
+  return <DemoNetwork slug={network} accountId={Number(account)} />;
 }
