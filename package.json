@@ -6,11 +6,12 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "start": "next start",
+    "setup": "node scripts/setup.mjs",
+    "shortcut": "node scripts/shortcut.mjs",
     "build:pages": "node scripts/build-pages.mjs",
     "deploy:pages": "node scripts/deploy-pages.mjs",
-    "start": "next start",
-    "probe": "node --env-file=.env.local scripts/probe.mjs",
-    "accounts": "node --env-file=.env.local scripts/accounts.mjs"
+    "probe": "node --env-file=.env.local scripts/probe.mjs"
   },
   "dependencies": {
     "next": "^15.5.26",
